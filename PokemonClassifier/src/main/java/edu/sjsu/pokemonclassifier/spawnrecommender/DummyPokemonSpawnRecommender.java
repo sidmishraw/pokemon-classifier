@@ -62,6 +62,7 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 	@SuppressWarnings("unused")
 	private static String defendingPokemonName			= "";
 	private static Map<String,Integer> pokemonRankMap 	= new HashMap<>();
+	private static String pokemonSpawnFilePath			= "";
 
 	/**
 	 * Takes the souce and destination lat,long coordinates and returns the distance
@@ -95,16 +96,28 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 	// trying out the recommendation for spawn
 	public static void main(String[] args) {
 
-		System.out.println("please enter your Defending pokemon name and lat and long "
-				+ "coordinates separated by space like ----> Defending pokemon Lat Long");
+		System.out.println("Please enter defending pokemon name, your latitude and "
+					+ "longitude coordinates and path to pokemon spawn data separated by spaces.");
 
 		try( BufferedReader br = new BufferedReader(new InputStreamReader(System.in)) ) {
 
-			String [] strCoordinates = br.readLine().split("\\s");
+			String [] strCoordinates = br.readLine().split("\\s",4);
+
+			for (String str : strCoordinates ) {
+				System.out.println(str);
+			}
+			
+
+			if (strCoordinates.length < 4) {
+
+				System.out.println("Insufficient parameters, Exiting ...");
+				System.exit(1);
+			}
 
 			defendingPokemonName = strCoordinates[0];
 			mylat = Double.parseDouble(strCoordinates[1]);
 			mylong = Double.parseDouble(strCoordinates[2]);
+			pokemonSpawnFilePath = strCoordinates[3].replaceAll("\\s", "\\ ");
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -117,9 +130,13 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		JavaSparkContext sparkContext 		= new JavaSparkContext(sparkConf);
 
 		// Step 3 - Load and parse the data
-		JavaRDD<String> data = sparkContext.textFile("/Users/sidmishraw/Documents/SJSU"
-				+ "/Classes Fall 2016/CS 185-C Solving BigData Problems/pokemon-spawns.csv");
-		
+		System.out.println("Data file path  --------> " + pokemonSpawnFilePath);
+
+		/**
+		 * "/Users/sidmishraw/Documents/SJSU/Classes Fall 2016/CS 185-C Solving BigData Problems/pokemon-spawns.csv"
+		 */
+		JavaRDD<String> data = sparkContext.textFile(pokemonSpawnFilePath);
+
 		// Hardcoding the pokemon map just for now
 		pokemonRankMap.put("Moltress",1);
 		pokemonRankMap.put("Charizard",2);
@@ -160,7 +177,7 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 
 		// Convert the Spawninfo into Rating format
 		// with userId as 1
-		// and item as pokemon names
+		// and item as Pokemon names
 		// ratings as closeness ratios
 		JavaRDD<SpawnRating> spawnRating = spawnInfoRDD.map(
 
@@ -195,7 +212,8 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 							rating = 1;
 						}
 
-						return new SpawnRating(sinfo.getPokemonSerialNbr(),sinfo.getPokemonName(),rating, sinfo.getLatitude(), sinfo.getLongitude(), distanceM);
+						return new SpawnRating(sinfo.getPokemonSerialNbr(),sinfo.getPokemonName()
+								,rating, sinfo.getLatitude(), sinfo.getLongitude(), distanceM);
 					}
 
 				}
@@ -294,64 +312,170 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		// fetch all the ratings from the spawnRating RDD
 		List<SpawnRating> ratings = filteredSpawnRating.collect();
 
-		File opfile = new File("/Users/sidmishraw/Documents/SJSU"
-				+ "/Classes Fall 2016/CS 185-C Solving BigData Problems/pokemonspawnsRating.txt");
+		String pokemonDirPath =  System.getProperty("user.dir").replaceAll("\\s", "\\ ") + File.separator + "pokemonspawnsRecommender";
 
-		try (BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(opfile)))) {
+		File pokemonDir = new File(pokemonDirPath);
+
+		// create dir if it doesn't exist
+		if ( !pokemonDir.exists() ) {
+
+			System.out.println("CREATING DIR ____>" + pokemonDirPath);
+			pokemonDir.mkdir();
+		}
+
+		// trim the last quotemark
+		String filteredRatingOutPutPath = pokemonDirPath + File.separator + "pokemonspawnsRating.txt";
+
+		File opfile = new File(filteredRatingOutPutPath);
+
+		// create the file if it doesn't exist
+		try {
+
+			opfile.createNewFile();
+		} catch (IOException e2) {
+
+			e2.printStackTrace();
+		}
+
+		try ( BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(opfile, false))) ) {
 
 			StringBuffer buffer = new StringBuffer();
+
+			buffer.append("---------------------------------------- POKEMON SPAWN RATINGS -----------------------------------------\n")
+			  .append("Spawn Rating - Higher is better\n\n");
+
+			buffer.append("SERIAL#")
+			  .append("\t")
+			  .append("NAME")
+			  .append("\t")
+			  .append("SPAWN RATING")
+			  .append("\t")
+			  .append("SPAWN LATITUDE CO-ORDINATE")
+			  .append("\t")
+			  .append("SPAWN LONGITUDE CO-ORDINATE")
+			  .append("\n");
+
+			System.out.println(buffer.toString());
+
+			bufferedWriter.write(buffer.toString());
 
 			for (SpawnRating rating : ratings) {
 
 				buffer.setLength(0);
 
 				buffer.append(rating.getPokemonSerialNbr())
-					  .append(" ")
+					  .append("\t")
 					  .append(rating.getPokemonName())
-					  .append(" ")
+					  .append("\t")
 					  .append(rating.getSpawnrating())
-					  .append(" ")
+					  .append("\t")
 					  .append(rating.getSpawnlatcooridinate())
-					  .append(" ")
+					  .append("\t")
 					  .append(rating.getSpawnlongcooridinate())
 					  .append("\n");
 
+				System.out.println(buffer.toString());
+
 				bufferedWriter.write(buffer.toString());
 			}
+
+			buffer.setLength(0);
+
+			buffer.append("---------------------------------------- POKEMON SPAWN RATINGS ---------------------------------------\n")
+			  .append("Thanks for using this tool.\n")
+			  .append("TEAM:\nJoshua\nSidharth\nWei Chung");
+
+			System.out.println(buffer.toString());
+
+			bufferedWriter.write(buffer.toString());
 		} catch(IOException e) {
 
 			e.printStackTrace();
 		}
 
-		System.out.println("PROgram completed, output at /Users/sidmishraw/Documents/SJSU"
-				+ "/Classes Fall 2016/CS 185-C Solving BigData Problems/pokemonspawnsRating.txt");
+		System.out.println("RATING COMPLETED, OUTPUT AT :" + filteredRatingOutPutPath );
 
 		// remappedReducedSpawnRating
 		List<Tuple2<SpawnRating, Integer>> filteredSpawnRatings = sortedSpawnRating.collect();
 
-		StringBuffer buffer = new StringBuffer();
+		String finalSpawnRecommendedOutPutPath = pokemonDirPath + File.separator + "pokemonspawnsRecommended.txt";
 
-		for (Tuple2<SpawnRating, Integer> rating : filteredSpawnRatings ) {
+		opfile = new File(finalSpawnRecommendedOutPutPath);
+
+		try {
+
+			opfile.createNewFile();
+		} catch (IOException e1) {
+
+			e1.printStackTrace();
+		}
+
+		try (BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(opfile)))) {
+
+			StringBuffer buffer = new StringBuffer();
+
+			buffer.append("---------------------------------------- POKEMON SPAWN RECOMMENDATIONS ------------------------------------\n")
+				  .append("Spawn Rating - Higher is better\n")
+				  .append("Higher ranked pokemons on the top of the list.\n\n");
+
+			buffer.append("SERIAL#")
+			  .append("\t")
+			  .append("NAME")
+			  .append("\t")
+			  .append("SPAWN RATING")
+			  .append("\t")
+			  .append("SPAWN LATITUDE CO-ORDINATE")
+			  .append("\t")
+			  .append("SPAWN LONGITUDE CO-ORDINATE")
+			  .append("\t")
+			  .append("DISTANCE FROM ME")
+			  .append("\t")
+			  .append("PAST SPAWN FREQUENCY")
+			  .append("\n");
+
+			System.out.println(buffer.toString());
+
+			bufferedWriter.write(buffer.toString());
+
+			for (Tuple2<SpawnRating, Integer> rating : filteredSpawnRatings ) {
+
+				buffer.setLength(0);
+
+				buffer.append(rating._1().getPokemonSerialNbr())
+					  .append("\t")
+					  .append(rating._1().getPokemonName())
+					  .append("\t")
+					  .append(rating._1().getSpawnrating())
+					  .append("\t")
+					  .append(rating._1().getSpawnlatcooridinate())
+					  .append("\t")
+					  .append(rating._1().getSpawnlongcooridinate())
+					  .append("\t")
+					  .append(rating._1().getApproximateDistanceFromMe())
+					  .append("\t")
+					  .append(rating._2())
+					  .append("\n");
+
+				System.out.println(buffer.toString());
+
+				bufferedWriter.write(buffer.toString());
+			}
 
 			buffer.setLength(0);
 
-			buffer.append(rating._1().getPokemonSerialNbr())
-				  .append(" ")
-				  .append(rating._1().getPokemonName())
-				  .append(" ")
-				  .append(rating._1().getSpawnrating())
-				  .append(" ")
-				  .append(rating._1().getSpawnlatcooridinate())
-				  .append(" ")
-				  .append(rating._1().getSpawnlongcooridinate())
-				  .append(" ")
-				  .append(rating._1().getApproximateDistanceFromMe())
-				  .append(" ")
-				  .append(rating._2())
-				  .append("\n");
+			buffer.append("---------------------------------------- POKEMON SPAWN RECOMMENDATIONS ------------------------------------\n")
+			  .append("Thanks for using this tool.\n")
+			  .append("TEAM:\nJoshua\nSidharth\nWei Chung");
 
 			System.out.println(buffer.toString());
+
+			bufferedWriter.write(buffer.toString());
+		} catch(IOException e) {
+
+			e.printStackTrace();
 		}
+
+		System.out.println("PROGRAM COMPLETED, OUTPUT AT :" + finalSpawnRecommendedOutPutPath );
 
 		sparkContext.close();
 	}
