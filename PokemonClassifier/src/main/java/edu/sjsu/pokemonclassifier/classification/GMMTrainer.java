@@ -7,6 +7,7 @@ package edu.sjsu.pokemonclassifier.classification;
 
 import org.apache.spark.ml.clustering.GaussianMixture;
 import org.apache.spark.ml.clustering.GaussianMixtureModel;
+import org.apache.spark.ml.stat.distribution.MultivariateGaussian;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -37,7 +38,7 @@ public class GMMTrainer {
         // Trains a GaussianMixture model
         GaussianMixture gmm = new GaussianMixture().setK(numOfmodels);
         model = gmm.fit(dataset);
-
+        
         spark.stop();
     }
 
