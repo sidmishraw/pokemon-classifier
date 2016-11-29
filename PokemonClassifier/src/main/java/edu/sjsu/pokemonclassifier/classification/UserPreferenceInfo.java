@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 //import javafx.util.Pair;
 
 import org.apache.commons.io.input.ReversedLinesFileReader;
@@ -106,7 +107,7 @@ public class UserPreferenceInfo {
         strongerCandidates.add("Venonat");
     }
     
-    public HashMap<Integer, String> getRecommendPokemon() {
+    public Map<String, Integer> getRecommendPokemon() {
         // API for downard module
         //  Put all strongerCandidates to GMM model
         List<Pair<Integer, Double>> weightPairList = new ArrayList<>();    
@@ -129,7 +130,8 @@ public class UserPreferenceInfo {
         
         // Get top-5
         // 5 is temp number
-        HashMap<Integer, String> rankedPokemon = new HashMap<Integer, String>();
+        // <String, Interger> -> <PokemonName, Rank#>
+        HashMap<String, Integer> rankedPokemon = new HashMap<String, Integer>();
         HashMap<Integer, String> strongerCandidatesMap = new HashMap<Integer, String>();
         for (int i = 0; i < strongerCandidates.size(); i++)
             strongerCandidatesMap.put(i, strongerCandidates.get(i));
@@ -168,7 +170,7 @@ public class UserPreferenceInfo {
             }
             
             strongerCandidatesMap.remove(minIdx);
-            rankedPokemon.put(rank, bestFitName);
+            rankedPokemon.put(bestFitName, rank);
             rank++;
         }
         
