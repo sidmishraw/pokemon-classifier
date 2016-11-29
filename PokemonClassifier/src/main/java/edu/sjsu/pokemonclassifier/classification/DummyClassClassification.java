@@ -4,6 +4,7 @@
 package edu.sjsu.pokemonclassifier.classification;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author wayne
@@ -28,10 +29,9 @@ public class DummyClassClassification {
 
       user.setDefenderPokemon("Bulbasaur");
 
-      HashMap<Integer, String> rTable = user.getRecommendPokemon();
-      for (int i = 0; i < rTable.size(); i++) {
-          System.out.println("Rank: " + i + ", Name: " + rTable.get(i + 1));
-      }
+      Map<String, Integer> rTable = user.getRecommendPokemon();
+      for (Map.Entry<String, Integer> entry : rTable.entrySet())
+          System.out.println(entry.getKey() + "/" + entry.getValue());
       
       System.out.println("Hello Pokemon Classificaiton Done");
   }
