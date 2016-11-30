@@ -63,6 +63,7 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 	private static String defendingPokemonName			= "";
 	private static Map<String,Integer> pokemonRankMap 	= new HashMap<>();
 	private static String pokemonSpawnFilePath			= "pokemon-spawns.csv";
+	private static String baseFilePath					= "";
 
 	/**
 	 * Takes the souce and destination lat,long coordinates and returns the distance
@@ -97,27 +98,28 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 	public static void main(String[] args) {
 
 		System.out.println("Please enter defending pokemon name, your latitude and "
-					+ "longitude coordinates and path to pokemon spawn data separated by spaces.");
+					+ "longitude coordinates and path to the project source folder.");
 
 		try( BufferedReader br = new BufferedReader(new InputStreamReader(System.in)) ) {
 
 			String [] strCoordinates = br.readLine().split("\\s",4);
 
 			for (String str : strCoordinates ) {
+
 				System.out.println(str);
 			}
-			
 
-			if (strCoordinates.length < 3) {
+			if (strCoordinates.length < 4) {
 
 				System.out.println("Insufficient parameters, Exiting ...");
 				System.exit(1);
-			}
+			} else {
 
-			defendingPokemonName = strCoordinates[0];
-			mylat = Double.parseDouble(strCoordinates[1]);
-			mylong = Double.parseDouble(strCoordinates[2]);
-			pokemonSpawnFilePath = strCoordinates[3].replaceAll("\\s", "\\ ");
+				defendingPokemonName = strCoordinates[0];
+				mylat = Double.parseDouble(strCoordinates[1]);
+				mylong = Double.parseDouble(strCoordinates[2]);
+				baseFilePath = strCoordinates[3].replaceAll("\\s", "\\ ");
+			}
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -130,12 +132,12 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		JavaSparkContext sparkContext 		= new JavaSparkContext(sparkConf);
 
 		// Step 3 - Load and parse the data
-		System.out.println("Data file path  --------> " + pokemonSpawnFilePath);
+		System.out.println("Data file path  --------> " + baseFilePath + File.separator + pokemonSpawnFilePath);
 
 		/**
 		 * "/Users/sidmishraw/Documents/SJSU/Classes Fall 2016/CS 185-C Solving BigData Problems/pokemon-spawns.csv"
 		 */
-		JavaRDD<String> data = sparkContext.textFile(pokemonSpawnFilePath);
+		JavaRDD<String> data = sparkContext.textFile(baseFilePath + File.separator + pokemonSpawnFilePath);
 
 		// Hardcoding the pokemon map just for now
 		pokemonRankMap.put("Moltress",1);
