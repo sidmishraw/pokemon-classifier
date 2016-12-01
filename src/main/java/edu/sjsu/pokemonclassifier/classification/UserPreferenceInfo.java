@@ -5,6 +5,7 @@
  */
 package edu.sjsu.pokemonclassifier.classification;
 
+import edu.sjsu.pokemonclassifier.analysis.PokemonAnalysis;
 import java.io.FileWriter;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -21,6 +22,8 @@ import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.apache.spark.ml.clustering.GaussianMixtureModel;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
+import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  *
@@ -49,9 +52,13 @@ public class UserPreferenceInfo {
     private ArrayList<String> strongerCandidates = new ArrayList<String>();
     private String fileName = null;
     private GMMTrainer gmmTrainer = new GMMTrainer(10);
+    private JavaSparkContext sparkContext;
+    private String baseFilePath;
         
-    public UserPreferenceInfo(int userID, SparkConf conf) {
+    public UserPreferenceInfo(int userID, JavaSparkContext sparkContext, SparkConf conf, String baseFilePath) {
         this(userID);
+        sparkContext = sparkContext;
+        baseFilePath = baseFilePath;
         gmmTrainer.setSparkConf(conf);
     }
 
@@ -100,18 +107,9 @@ public class UserPreferenceInfo {
         //   Get all pokemons which are greater or stronger than current defender.
         //   Then put them in strongerCandidates.
         
-        // temp datas for testing until getting first module
-        strongerCandidates.add("Charmeleon");
-        strongerCandidates.add("Pidgeot");
-        strongerCandidates.add("Ekans");
-        strongerCandidates.add("Nidorino");
-        strongerCandidates.add("Oddish");
-        strongerCandidates.add("Abra");
-        strongerCandidates.add("Golem");
-        strongerCandidates.add("Koffing");
-        strongerCandidates.add("Flareon");
-        strongerCandidates.add("Mewtwo");
-        strongerCandidates.add("Venonat");
+        List<String> strongerPokemons = PokemonAnalysis.analyzePokemon(name, sparkContext, baseFilePath);
+        for (int i = 0; i < strongerPokemons.size(); i++)
+            strongerCandidates.add(strongerPokemons.get(i));
     }
     
     public Map<String, Integer> getRecommendPokemon() {
