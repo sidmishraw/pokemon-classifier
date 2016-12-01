@@ -5,6 +5,7 @@
  */
 package edu.sjsu.pokemonclassifier.classification;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.ml.clustering.GaussianMixture;
 import org.apache.spark.ml.clustering.GaussianMixtureModel;
 import org.apache.spark.ml.stat.distribution.MultivariateGaussian;
@@ -20,6 +21,7 @@ public class GMMTrainer {
     
     private int numOfmodels;
     GaussianMixtureModel model;
+    SparkConf sparkConf;
 
     public GMMTrainer(int numOfmodels) {
         this.numOfmodels = numOfmodels;
@@ -27,10 +29,16 @@ public class GMMTrainer {
  
     public void train(String userDataFile) {
         // Creates a SparkSession
-        SparkSession spark = SparkSession
-                .builder()
-                .appName("GMMTrainer")
-                .getOrCreate();
+        SparkSession spark;
+        if (sparkConf == null) {
+            spark = SparkSession
+                    .builder()
+                    .appName("GMMTrainer")
+                    .getOrCreate();
+        }
+        else {
+            spark = SparkSession.builder().config(sparkConf).getOrCreate();
+        }
 
         // Loads data
         Dataset<Row> dataset = spark.read().format("libsvm").load(userDataFile);
@@ -47,5 +55,9 @@ public class GMMTrainer {
         // ToDo:
         //   Will remove in the future. Instead, returing high-level parameters.
         return model;
+    }
+
+    public void setSparkConf(SparkConf sparkConf) {
+        this.sparkConf = sparkConf;
     }
 }

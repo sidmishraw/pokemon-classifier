@@ -20,6 +20,7 @@ import java.util.Map;
 import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.apache.spark.ml.clustering.GaussianMixtureModel;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.spark.SparkConf;
 
 /**
  *
@@ -48,6 +49,11 @@ public class UserPreferenceInfo {
     private ArrayList<String> strongerCandidates = new ArrayList<String>();
     private String fileName = null;
     private GMMTrainer gmmTrainer = new GMMTrainer(10);
+        
+    public UserPreferenceInfo(int userID, SparkConf conf) {
+        this(userID);
+        gmmTrainer.setSparkConf(conf);
+    }
 
     public UserPreferenceInfo(int userID) {
         this.userID = userID;
