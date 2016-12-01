@@ -22,8 +22,7 @@ import java.util.Map;
 
 public class PokemonAnalysis {
 
-    private static String defender;
-    private static boolean stronger 	= false;
+    private static String defender = "";
 
     private static double[][] pokemonValue 			= new double[][]{
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0, 1, 1, 0.5, 1},
@@ -70,13 +69,17 @@ public class PokemonAnalysis {
 
     private static int typeConversion(String pokeType) {
 
-        String[] pokemonTypes 		= {"Normal", "Fire", "Water", "Electric", "Grass", "Ice"
+        String[] pokemonTypes 		= { "Normal", "Fire", "Water", "Electric", "Grass", "Ice"
         		, "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock"
         		, "Ghost", "Dragon", "Dark", "Steel", "Fairy" };
 
         for ( int i = 0; i < pokemonTypes.length; i ++ ) {
 
-            if (pokemonTypes[i] == pokeType) return i;
+            if (pokemonTypes[i].equalsIgnoreCase(pokeType)) {
+
+            	System.out.println(pokeType + "   " + i);
+            	return i;
+            }
         }
 
         return -1;
@@ -84,28 +87,31 @@ public class PokemonAnalysis {
 
     private static double pokeMultiplier(String[] defenderStats, String pokeType1, String pokeType2) {
 
-        double multiplier1, multiplier2 = 1, multiplier3 = 1, multiplier4 = 1;
+    	System.out.println("DEBUG INFO :::: " + defenderStats[2] + "   "  
+    						+ defenderStats[3] + "   " + pokeType1 + "    " + pokeType2);
 
-        multiplier1 		= pokemonValue[typeConversion(pokeType1)][typeConversion(defenderStats[3])];
+        double multiplier1 = 1, multiplier2 = 1, multiplier3 = 1, multiplier4 = 1;
 
-        if (defenderStats[4] != null) {
+        int attackerType1 = typeConversion(pokeType1);
+        int attackerType2 = typeConversion(pokeType2);
+        int defenderType1 = typeConversion(defenderStats[2]);
+        int defenderType2 = typeConversion(defenderStats[3]);
 
-        	multiplier2 = pokemonValue[typeConversion(pokeType1)][typeConversion( defenderStats[4])];
+        multiplier1 		= pokemonValue[attackerType1][defenderType1];
+
+        if (defenderType2 != -1) {
+
+        	multiplier2 	= pokemonValue[attackerType1][defenderType2];
         }
 
-        if (pokeType2 != null) {
+        if (attackerType2 != -1) {
 
-        	multiplier3 = pokemonValue[typeConversion(pokeType2)][typeConversion(defenderStats[3])];
+        	multiplier3 = pokemonValue[attackerType2][defenderType1];
         }
 
-        if (pokeType2 != null && defenderStats[4] != null) {
-
-        	multiplier4 = pokemonValue[typeConversion(pokeType2)][typeConversion(defenderStats[4])];
-        }
-
-        if ( multiplier1 * multiplier2 * multiplier3 * multiplier4 >= 1) {
-
-        	stronger = true;
+        if ( attackerType2 != -1 && defenderType2 != -1 ) {
+        	
+        	multiplier4 = pokemonValue[attackerType2][defenderType1];
         }
 
         return multiplier1 * multiplier2 * multiplier3 * multiplier4;
@@ -117,21 +123,27 @@ public class PokemonAnalysis {
     }
 
     /**
+     * Modified by sidmishraw
      * 
-     * @param args
+     * @param defenderPokemon
+     * @param sparkContext
+     * @param baseFilePath
+     * @return List<String> -- returns the list of pokemons that can defeat the defending pokemon
      */
     public static List<String> analyzePokemon(String defenderPokemon, JavaSparkContext sparkContext, String baseFilePath) {
 
         /**
-         * Used to pick extract the defending pokemon's stats
+         * Used to extract the defending pokemon's stats
          */
         try ( BufferedReader br = new BufferedReader(new FileReader(baseFilePath + File.separator + "Pokemon.csv")) ) {
 
-            String sCurrentLine;
+        	System.out.println("DEBUG INFO:: Reading from " + baseFilePath + File.separator + "Pokemon.csv" );
+
+            String sCurrentLine = "";
 
             while ((sCurrentLine = br.readLine()) != null) {
 
-                if (!sCurrentLine.contains("Mega") && sCurrentLine.toLowerCase().contains(defenderPokemon)) {
+                if (!sCurrentLine.contains("Mega") && sCurrentLine.contains(defenderPokemon)) {
 
                     defender = sCurrentLine;
                 }
@@ -166,7 +178,13 @@ public class PokemonAnalysis {
             }
         );
 
+        System.out.println("DEBUG INFO :::: PokemonAnalysis -- defender = " + defender);
+
         final String[] defenderStat = defender.split(",");
+
+        PokemonInfo.setDefendingPokemonAttack(pokeHash( defenderStat, Integer.parseInt(defenderStat[6])
+                    		, Integer.parseInt(defenderStat[8]), Integer.parseInt(defenderStat[10]), defenderStat[2]
+                    		, defenderStat[3] ));
 
         JavaRDD<PokemonInfo> pokePower = pokemonData.map(
 
@@ -184,7 +202,16 @@ public class PokemonAnalysis {
                     		, pokemonInfo.getPokemonSA(), pokemonInfo.getPokemonSp(), pokemonInfo.getType1()
                     		, pokemonInfo.getType2() );
 
-                    return new PokemonInfo(pokemonInfo.getPokemonName() + "," + pokemonAttackPower);
+                    if ( defenderPokemon.equalsIgnoreCase(pokemonInfo.getPokemonName()) ) {
+
+                    	PokemonInfo.setDefendingPokemonAttack(pokemonAttackPower);
+                    }
+
+                    PokemonInfo pokemonInfo2 = new PokemonInfo(pokemonInfo.getPokemonName() + "," + pokemonAttackPower);
+
+                    pokemonInfo2.setPokemonName(pokemonInfo.getPokemonName());
+
+                    return pokemonInfo2;
                 }
             }
         );
@@ -193,32 +220,37 @@ public class PokemonAnalysis {
 
         JavaRDD<PokemonInfo> getStrongerPokemon = pokePower.filter(
 
-                new Function<PokemonInfo, Boolean>() {
+            new Function<PokemonInfo, Boolean>() {
 
-                    /**
-					 * 
-					 */
-					private static final long serialVersionUID = 1L;
+                /**
+				 * 
+				 */
+				private static final long serialVersionUID = 1L;
 
-					@Override
-                    public Boolean call(PokemonInfo pokemonInfo) throws Exception {
+				@Override
+                public Boolean call(PokemonInfo pokemonInfo) throws Exception {
 
-                        String[] data = pokemonInfo.getData().split(",");
+                    String[] data = pokemonInfo.getData().split(",");
 
-                        if (Integer.parseInt(data[1]) > 0 && stronger) {
+                    if (Double.parseDouble(data[1]) > PokemonInfo.getDefendingPokemonAttack()) {
 
-                            pokemonPowerMap.put(data[0], toInt(data[1]));
+                        pokemonPowerMap.put(data[0], (int) Double.parseDouble(data[1]));
 
-                            return true;
-                        } else return false;
+                        return true;
+                    } else {
+
+                    	return false;
                     }
                 }
+            }
         );
 
         List<PokemonInfo> strongPokemonInfos	= getStrongerPokemon.collect();
         List<String> strongPokemons				= new ArrayList<>();
 
         for ( PokemonInfo pokemonInfo : strongPokemonInfos ) {
+
+        	System.out.println("DEBUG INFO :::: strong pokemon " + pokemonInfo.getPokemonName() );
 
         	strongPokemons.add(pokemonInfo.getPokemonName());
         }

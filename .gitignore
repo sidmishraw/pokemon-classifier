@@ -3,3 +3,6 @@
 /.classpath
 /.settings/
 /.DS_Store
+/1_pref.txt
+/pokemonspawnsRecommender/pokemonspawnsRating.txt
+/pokemonspawnsRecommender/pokemonspawnsRecommended.txt

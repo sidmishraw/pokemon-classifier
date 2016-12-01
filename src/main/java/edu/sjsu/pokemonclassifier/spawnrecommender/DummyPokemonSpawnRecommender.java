@@ -23,6 +23,9 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 
+import edu.sjsu.pokemonclassifier.classification.PokemonDict;
+import edu.sjsu.pokemonclassifier.classification.UserPreferenceInfo;
+
 // Used to fix the serialization error when 
 import static edu.sjsu.pokemonclassifier.spawnrecommender.SerializableComparator.serialize; 
 
@@ -58,8 +61,7 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 	}
 
 	// my lat and long coorinate, used to compute the distance
-	private static double mylat = 0, mylong 			= 0;
-	@SuppressWarnings("unused")
+	private static double mylat 	= 0, mylong 	= 0;
 	private static String defendingPokemonName			= "";
 	private static Map<String,Integer> pokemonRankMap 	= new HashMap<>();
 	private static String pokemonSpawnFilePath			= "pokemon-spawns.csv";
@@ -89,25 +91,43 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 
 	    double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-	    float dist = (float) (earthRadius * c);
+	    double dist = (double) (earthRadius * c);
 
 	    return dist;
 	}
 
+	/**
+	 * Converts the string into title case
+	 * @param string
+	 * @return String in title casing lie Myname
+	 */
+	private static String titleCase(String string) {
+
+		char [] charArray = string.toCharArray();
+
+		if ( Character.isUpperCase(charArray[0]) ) {
+	
+			return string;
+		} else {
+
+			charArray[0] = Character.toUpperCase(charArray[0]);
+
+			System.out.println(String.valueOf(charArray));
+
+			return String.valueOf(charArray);
+		}
+	}
+
 	// trying out the recommendation for spawn
+	@SuppressWarnings("unused")
 	public static void main(String[] args) {
 
 		System.out.println("Please enter defending pokemon name, your latitude and "
-					+ "longitude coordinates and path to the project source folder.");
+					+ "longitude coordinates and path to the project source folder SEPARATED BY SPACES.");
 
 		try( BufferedReader br = new BufferedReader(new InputStreamReader(System.in)) ) {
 
 			String [] strCoordinates = br.readLine().split("\\s",4);
-
-			for (String str : strCoordinates ) {
-
-				System.out.println(str);
-			}
 
 			if (strCoordinates.length < 4) {
 
@@ -115,15 +135,17 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 				System.exit(1);
 			} else {
 
-				defendingPokemonName = strCoordinates[0];
-				mylat = Double.parseDouble(strCoordinates[1]);
-				mylong = Double.parseDouble(strCoordinates[2]);
-				baseFilePath = strCoordinates[3].replaceAll("\\s", "\\ ");
+				defendingPokemonName 	= titleCase(strCoordinates[0]);
+				mylat 					= Double.parseDouble(strCoordinates[1]);
+				mylong 					= Double.parseDouble(strCoordinates[2]);
+				baseFilePath 			= strCoordinates[3].replaceAll("\\s", "\\ ");
 			}
 		} catch (IOException e) {
 
 			e.printStackTrace();
 		}
+
+		System.out.println("DEBUG INFO:::" + defendingPokemonName + "\n" + mylat + "\n" + mylong + "\n" + baseFilePath );
 
 		//Configure spark
 		// Step 1 - set the Application name
@@ -140,16 +162,41 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		JavaRDD<String> data = sparkContext.textFile(baseFilePath + File.separator + pokemonSpawnFilePath);
 
 		// Hardcoding the pokemon map just for now
-		pokemonRankMap.put("Moltress",1);
-		pokemonRankMap.put("Charizard",2);
-		pokemonRankMap.put("Charmeleon",3);
-		pokemonRankMap.put("Arcanine",4);
-		pokemonRankMap.put("Raichu",5);
-		pokemonRankMap.put("Pikachu",6);
-		pokemonRankMap.put("Charmander",7);
-		pokemonRankMap.put("Weedle",8);
-		pokemonRankMap.put("Growlithe",9);
-		pokemonRankMap.put("Machamp",10);
+		PokemonDict.setBaseFilePath(baseFilePath);
+		PokemonDict pokemonDict = PokemonDict.getInstance();
+
+		// spoofing userId to be equal to the defending pokemon's serial number
+		//int spoofedUserId 		=	pokemonDict.getPokemonSerialNbr(defendingPokemonName);
+		// hardcoding userId
+		int spoofedUserId			= 1;
+
+		// get the userpreference object and set the userId as the spoofed user ID
+		UserPreferenceInfo userPreferenceInfo = new UserPreferenceInfo(spoofedUserId,sparkContext,sparkConf,baseFilePath);
+
+		// hardcoding the preset favorite pokemon names
+		// for demo
+		// 10 favorite pokemon
+		userPreferenceInfo.setFavoritePokemon("Bulbasaur");
+		userPreferenceInfo.setFavoritePokemon("Squirtle");
+		userPreferenceInfo.setFavoritePokemon("Charmander");
+		userPreferenceInfo.setFavoritePokemon("Pikachu");
+		userPreferenceInfo.setFavoritePokemon("Pidgey");
+		userPreferenceInfo.setFavoritePokemon("Weedle");
+		userPreferenceInfo.setFavoritePokemon("Zubat");
+		userPreferenceInfo.setFavoritePokemon("Growlithe");
+		userPreferenceInfo.setFavoritePokemon("Machop");
+		userPreferenceInfo.setFavoritePokemon("Mankey");
+
+		// setting the defending pokemon
+		userPreferenceInfo.setDefenderPokemon(defendingPokemonName);
+
+		// fetching the ranked recommended pokemons from GMM model -- classifier
+		pokemonRankMap = userPreferenceInfo.getRecommendPokemon();
+
+		for ( Map.Entry<String,Integer> entry : pokemonRankMap.entrySet() ) {
+
+			System.out.println("HARMLESS :::: ranked entry :" + entry.getKey() + " ---> " + entry.getValue() );
+		}
 
 		// Step 4 - Create RDDs of SpawnInfo types
 		// use spark's inbuilt map function
@@ -283,7 +330,6 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		// #Crucial method
 		// fixed sortByKey using comparator
 		// DESC order maintained
-		@SuppressWarnings("resource")
 		JavaPairRDD<SpawnRating, Integer> sortedSpawnRating = remappedReducedSpawnRating.sortByKey( serialize (
 
 			(SpawnRating firstSpawnRating, SpawnRating secondSpawnRating) -> {
@@ -314,7 +360,7 @@ public class DummyPokemonSpawnRecommender implements Serializable {
 		// fetch all the ratings from the spawnRating RDD
 		List<SpawnRating> ratings = filteredSpawnRating.collect();
 
-		String pokemonDirPath =  System.getProperty("user.dir").replaceAll("\\s", "\\ ") + File.separator + "pokemonspawnsRecommender";
+		String pokemonDirPath =  baseFilePath.replaceAll("\\s", "\\ ") + File.separator + "pokemonspawnsRecommender";
 
 		File pokemonDir = new File(pokemonDirPath);
 

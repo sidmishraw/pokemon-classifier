@@ -22,7 +22,6 @@ import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.apache.spark.ml.clustering.GaussianMixtureModel;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 
 /**
@@ -31,7 +30,8 @@ import org.apache.spark.api.java.JavaSparkContext;
  */
 public class UserPreferenceInfo {
     
-    private class GmmIndexAndWeight implements Comparable<GmmIndexAndWeight> {
+    @SuppressWarnings("unused")
+	private class GmmIndexAndWeight implements Comparable<GmmIndexAndWeight> {
         
         private int index;
         private double weight;
@@ -49,31 +49,39 @@ public class UserPreferenceInfo {
     private int userID;
     private HashMap<String, Integer> favoriteCountingMap = new HashMap<String, Integer>();
     private int numOfLikedPokemon = 0;
-    private ArrayList<String> strongerCandidates = new ArrayList<String>();
+    private static ArrayList<String> strongerCandidates = new ArrayList<String>();
     private String fileName = null;
     private GMMTrainer gmmTrainer = new GMMTrainer(10);
     private JavaSparkContext sparkContext;
     private String baseFilePath;
-        
+
+    /**
+     * @param userID
+     * @param sparkContext
+     * @param conf
+     * @param baseFilePath
+     */
     public UserPreferenceInfo(int userID, JavaSparkContext sparkContext, SparkConf conf, String baseFilePath) {
-        this(userID);
-        sparkContext = sparkContext;
-        baseFilePath = baseFilePath;
+
+        this(userID,baseFilePath);
+
+        this.sparkContext 	= sparkContext;
+        this.baseFilePath 	= baseFilePath;
+
         gmmTrainer.setSparkConf(conf);
     }
 
-    public UserPreferenceInfo(int userID) {
-        this.userID = userID;
-        fileName = String.format(userID + "_pref.txt");
-        
-        File userStoredData = new File(fileName);
-        if (!userStoredData.exists()) {
-            try {
-                userStoredData.createNewFile();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
+    /**
+     * Modified by sidmishraw
+     * @param userID
+     */
+    public UserPreferenceInfo(int userID,String baseFilePath) {
+
+        this.setUserID(userID);
+
+        this.baseFilePath = baseFilePath;
+
+        this.fileName = baseFilePath + File.separator + String.format(userID + "_pref.txt");
     }
     
     public void setFavoritePokemon(String name) {
@@ -108,6 +116,7 @@ public class UserPreferenceInfo {
         //   Then put them in strongerCandidates.
         
         List<String> strongerPokemons = PokemonAnalysis.analyzePokemon(name, sparkContext, baseFilePath);
+
         for (int i = 0; i < strongerPokemons.size(); i++)
             strongerCandidates.add(strongerPokemons.get(i));
     }
@@ -136,13 +145,24 @@ public class UserPreferenceInfo {
         // Get top-5
         // 5 is temp number
         // <String, Interger> -> <PokemonName, Rank#>
-        HashMap<String, Integer> rankedPokemon = new HashMap<String, Integer>();
-        HashMap<Integer, String> strongerCandidatesMap = new HashMap<Integer, String>();
-        for (int i = 0; i < strongerCandidates.size(); i++)
-            strongerCandidatesMap.put(i, strongerCandidates.get(i).toLowerCase());
-        
-        int totalClusters = Math.min(model.getK(), 5);
+        HashMap<String, Integer> rankedPokemon 				= new HashMap<String, Integer>();
+        HashMap<Integer, String> strongerCandidatesMap 		= new HashMap<Integer, String>();
+
+        for ( String strongerCandidate : strongerCandidates ) {
+
+        	strongerCandidatesMap.put(strongerCandidates.indexOf(strongerCandidate), strongerCandidate);
+        }
+
+//        for (int i = 0; i < strongerCandidates.size(); i++) {
+//
+//        	strongerCandidatesMap.put(i, strongerCandidates.get(i).toLowerCase());
+//        }
+
+        // modified by sidmishraw for getting top 10 pokemons rather than 5
+        int totalClusters = Math.min(model.getK(), 10);
+
         int rank = 1;
+
         for (int i = totalClusters - 1; i >= 0; i--) {
             int modelIdx = weightPairList.get(i).getKey();
             double[] meanVector = model.gaussians()[modelIdx].mean().toArray();
@@ -154,15 +174,25 @@ public class UserPreferenceInfo {
             double minDist = Double.MAX_VALUE;
             int minIdx = 0;
             String bestFitName = null;
-            for (int j = 0; j < strongerCandidatesMap.size(); j++) {
-                
-                String name = strongerCandidatesMap.get(j).toLowerCase();
-                if (name == null)
-                    continue;
 
-                int att2 = PokemonDict.getInstance().getAttack(name);
-                int def2 = PokemonDict.getInstance().getDefense(name);
-                int hp2 = PokemonDict.getInstance().getHP(name);
+            for (int j = 0; j < strongerCandidatesMap.size(); j++) {
+
+                String name = strongerCandidatesMap.get(j);
+
+                if (name == null) {
+
+                	continue;
+                }
+
+                //name = name.toLowerCase();
+                System.out.println("HARMLESS:::: name = " + name);
+                System.out.println("HARMLESS:::: att2 = " + PokemonDict.getInstance().getAttack(name));
+                System.out.println("HARMLESS:::: def2 = " + PokemonDict.getInstance().getDefense(name));
+                System.out.println("HARMLESS:::: hp2 = " + PokemonDict.getInstance().getHP(name));
+
+                int att2 	= PokemonDict.getInstance().getAttack(name);
+                int def2 	= PokemonDict.getInstance().getDefense(name);
+                int hp2 	= PokemonDict.getInstance().getHP(name);
 
                 double dist = Math.sqrt((att - att2) * (att - att2) +
                                         (def - def2) * (def - def2) +
@@ -181,34 +211,92 @@ public class UserPreferenceInfo {
         
         return rankedPokemon;
     }    
-    
+
+    /**
+     * Modified by sidmishraw -- closed reading and writing streams
+     * @param dataRow
+     */
     private void writeInfoToFile(String dataRow) {
+
+    	BufferedWriter bufferedWriter 				= null;
+    	ReversedLinesFileReader rLinesFileReader 	= null;
+
         try {
+
             int labelIndex = 0;
+
             File userStoredData = new File(fileName);
+
             System.out.println("FIle: " + userStoredData.getAbsolutePath());
+
             if (!userStoredData.exists()) {
+
                 userStoredData.createNewFile();
+
+                System.out.println("DEBUG INFO :: Created file " +  fileName);
+            } else {
+
+                rLinesFileReader 							= new ReversedLinesFileReader(userStoredData);
+
+                String bottomLine 							= rLinesFileReader.readLine();
+
+                System.out.println("DEBUG INFO :: line read " +  bottomLine);
+
+                String[] tokens 							= bottomLine.split(" ");
+
+                labelIndex 									= Integer.parseInt(tokens[0]) + 1;
             }
-            else {
-                ReversedLinesFileReader rLinesFileReader = new ReversedLinesFileReader(userStoredData);
-                String bottomLine = rLinesFileReader.readLine();
-                String[] tokens = bottomLine.split(" ");
-                labelIndex = Integer.parseInt(tokens[0]) + 1;
-            }
+
             numOfLikedPokemon = labelIndex + 1;
-            
+
             // ToDo:
             //   Set a limit of file writing.
             //   Need to write in specific line
             
-            String line = String.format("%d %s", labelIndex, dataRow);
-            FileWriter fileWriter = new FileWriter(userStoredData, true);
-            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+            String line 			= String.format("%d %s", labelIndex, dataRow);
+
+            bufferedWriter 			= new BufferedWriter(new FileWriter(userStoredData, true));
+
             bufferedWriter.write(line + "\n");
-            bufferedWriter.close();
         } catch(IOException e) {
             System.out.println("COULD NOT WRITE TO FILE!!");
-        }               
+        } finally {
+
+        	if ( null != rLinesFileReader) {
+
+        		try {
+
+					rLinesFileReader.close();
+				} catch (IOException e) {
+
+					e.printStackTrace();
+				}
+        	}
+
+        	if ( null != bufferedWriter) {
+
+        		try {
+
+					bufferedWriter.close();
+				} catch (IOException e) {
+
+					e.printStackTrace();
+				}
+        	}
+        }
     }
+
+	/**
+	 * @return the userID
+	 */
+	public int getUserID() {
+		return userID;
+	}
+
+	/**
+	 * @param userID the userID to set
+	 */
+	public void setUserID(int userID) {
+		this.userID = userID;
+	}
 }
