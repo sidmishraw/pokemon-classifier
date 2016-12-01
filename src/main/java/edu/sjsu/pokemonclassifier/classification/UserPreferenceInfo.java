@@ -84,6 +84,7 @@ public class UserPreferenceInfo {
         
         // Write or append the detail to file
         String pokInfo = String.format("%d:%d %d:%d %d:%d", 1, att, 2, def, 3, HP);
+        System.out.println("pokeInfo: " + pokInfo);
         writeInfoToFile(pokInfo);
         
         System.out.println("TotalPokem: " + numOfLikedPokemon);
@@ -187,6 +188,7 @@ public class UserPreferenceInfo {
         try {
             int labelIndex = 0;
             File userStoredData = new File(fileName);
+            System.out.println("FIle: " + userStoredData.getAbsolutePath());
             if (!userStoredData.exists()) {
                 userStoredData.createNewFile();
             }
