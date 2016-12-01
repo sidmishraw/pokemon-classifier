@@ -134,7 +134,7 @@ public class UserPreferenceInfo {
         HashMap<String, Integer> rankedPokemon = new HashMap<String, Integer>();
         HashMap<Integer, String> strongerCandidatesMap = new HashMap<Integer, String>();
         for (int i = 0; i < strongerCandidates.size(); i++)
-            strongerCandidatesMap.put(i, strongerCandidates.get(i));
+            strongerCandidatesMap.put(i, strongerCandidates.get(i).toLowerCase());
         
         int totalClusters = Math.min(model.getK(), 5);
         int rank = 1;
@@ -151,7 +151,7 @@ public class UserPreferenceInfo {
             String bestFitName = null;
             for (int j = 0; j < strongerCandidatesMap.size(); j++) {
                 
-                String name = strongerCandidatesMap.get(j);
+                String name = strongerCandidatesMap.get(j).toLowerCase();
                 if (name == null)
                     continue;
 
