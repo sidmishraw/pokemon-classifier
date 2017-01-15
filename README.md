@@ -19,12 +19,15 @@
 
 We plan to use the following datasets from kaggle.com:
 
-• https://www.kaggle.com/abcsds/pokemon
-• https://www.kaggle.com/kveykva/sf-bay-area-pokemon-go-spawns • https://www.kaggle.com/abcsds/pokemongo
+* https://www.kaggle.com/abcsds/pokemon
+* https://www.kaggle.com/kveykva/sf-bay-area-pokemon-go-spawns 
+* https://www.kaggle.com/abcsds/pokemongo
 
 We plan on using data from the websites below for supporting our classiﬁcations:
 
-• http://www.pokemon.com/us/pokedex/ • http://pokemondb.net/pokedex • http://bulbapedia.bulbagarden.net/wiki/List_of_Pok%C3%A9-mon_by_National_Pok%C3%A9dex_number
+* http://www.pokemon.com/us/pokedex/ 
+* http://pokemondb.net/pokedex
+* http://bulbapedia.bulbagarden.net/wiki/List_of_Pok%C3%A9-mon_by_National_Pok%C3%A9dex_number
 
 We plan to take up one module each.
 
